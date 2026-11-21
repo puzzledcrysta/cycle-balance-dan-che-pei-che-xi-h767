@@ -12,4 +12,4 @@ ROLE = '共享单车晨班调度员'
 UNIT = '车公里'
 RULE_VERSION = 'cycle-balance-1.0'
 SIGNATURE = '真实调车路由'
-TABS = {'intake': '晨班盘点', 'contract': '站点字段', 'quality': '调度异常', 'domain': '调度流量', 'reconcile': '运输清单', 'runs': '配车批次', 'review': '调度签核'}
+TABS = {'intake': '晨班盘点', 'contract': '站点字段', 'quality': '调度异常', 'domain': '调度流量', 'reconcile': '运输清单', 'runs': '配车批次', 'correction': '盘点更正', 'review': '调度签核'}

@@ -13,6 +13,14 @@ CREATE TABLE IF NOT EXISTS reviews (
   decision TEXT NOT NULL, note TEXT NOT NULL, changed TEXT NOT NULL,
   PRIMARY KEY(run_id,version)
 );
+CREATE TABLE IF NOT EXISTS corrections (
+  id TEXT PRIMARY KEY,
+  base_run_id TEXT NOT NULL REFERENCES runs(id),
+  run_id TEXT NOT NULL REFERENCES runs(id),
+  version INTEGER NOT NULL,
+  affected TEXT NOT NULL, basis TEXT NOT NULL, dispatch TEXT NOT NULL,
+  created TEXT NOT NULL
+);
 """
 
 

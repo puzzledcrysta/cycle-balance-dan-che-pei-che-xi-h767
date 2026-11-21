@@ -15,6 +15,7 @@
 | M5 运输清单 | 核对独立清单和各类差异 | `POST /api/reconcile` | `app/modules/reconcile/service.py` | `tests/test_reconcile.py` |
 | M6 配车批次 | 打开历史批次并对原文件复跑 | `POST /api/runs` | `app/modules/runs/service.py` | `tests/test_runs.py` |
 | M7 调度签核 | 登记复核结论并下载证据 | `POST /api/review/{run_id}` | `app/modules/review/decisions.py` | `tests/test_review.py` |
+| M8 盘点更正 | 登记迟到的更正记录并锁定派车版本 | `POST /api/runs/{run_id}/corrections` | `app/modules/correction/service.py` | `tests/test_correction.py` |
 
 ## 陷阱登记
 
@@ -39,3 +40,7 @@
 ## 对账
 
 输入 = 计入 + 隔离 + 重传及版本替换 + 空白记录 + 重复表头。按业务键全外连接，缺失一侧与数值为零分别登记。逐笔差值与总差一致。
+
+## 盘点更正
+
+更正记录追加到原批次来源字节后整批复算，修订号规则自然取代旧行。更正批次记录原批次、受影响调车区（复算结论逐键比对）与原签核依据快照，并给出派车应采用版本：有受影响调车区时采用更正批次，否则沿用原批次。更正号按 `原批次:更正批次` 内容寻址，同一更正重试返回原记录，不生成新版本；原批次签核证据独立保留，不随更正覆盖。

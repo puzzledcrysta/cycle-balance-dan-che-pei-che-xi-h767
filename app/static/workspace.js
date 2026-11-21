@@ -8,6 +8,7 @@ const body = byId('grid-data');
 const alert = byId('notice');
 const live = byId('state');
 const action = document.querySelector('#source button[type=submit]');
+const correctionAction = byId('correction');
 const topExport = byId('export');
 let selected = Object.hasOwn(settings.tabs, location.hash.slice(1)) ? location.hash.slice(1) : 'domain';
 let result = null;
@@ -24,7 +25,7 @@ function filterTable() {
   const query = filter.value.trim().toLocaleLowerCase();
   const selected = rows.filter(row => {
     if (stage === 'reconcile' && differences.checked && row.code === 'MATCH') return false;
-    return !query || [row.key,row.id,row.line,row.code,settings.reasons[row.code],row.detail,row.note,row.kind]
+    return !query || [row.key,row.id,row.line,row.code,settings.reasons[row.code],row.detail,row.note,row.kind,row.affected,row.reason,row.role]
       .some(value => String(value ?? '').toLocaleLowerCase().includes(query));
   });
   byId('shown').textContent = `${selected.length} / ${rows.length}`;
@@ -83,6 +84,7 @@ function setRun(report) {
   byId('run-id').title = id;
   topExport.hidden = false;
   topExport.href = `/api/export/${id}`;
+  correctionAction.disabled = false;
   const values = {...result.counts, delta: result.book.delta, mismatched: result.book.mismatched};
   for (const cell of document.querySelectorAll('[data-count]')) cell.textContent = values[cell.dataset.count];
   live.textContent = `批次 ${id.slice(0, 9)} · ${result.balanced ? '记录已对齐' : '记录数不符'}`;
@@ -150,6 +152,28 @@ async function render() {
         return button;
       }]];
       rows = runs;
+    } else if (stage === 'correction') {
+      const lineage = await query(`/api/runs/${id}/corrections`);
+      const short = value => value.slice(0, 9);
+      const describe = (record, role) => ({
+        version: record.version, role,
+        base: short(record.base_run_id), run: short(record.run_id),
+        affected: record.affected.length
+          ? record.affected.map(item => `${item.key}·${settings.reasons[item.change] || item.change}`).join('、')
+          : '无',
+        adopt: `${short(record.dispatch.use_run_id)} ${settings.reasons[record.dispatch.code] || record.dispatch.code}`,
+        reason: record.dispatch.reason,
+        basis: [`规则 ${record.basis.manifest.version} · 来源摘要 ${record.basis.manifest.source_sha256.slice(0, 9)}`,
+                ...(record.basis.reviews.length
+                  ? record.basis.reviews.map(item => `v${item.version} ${item.decision} · ${item.note} · ${item.changed}`)
+                  : ['原批次尚无签核'])],
+        created: record.created,
+      });
+      view = [['版本', 'version', 'num'], ['关系', 'role'], ['原批次', 'base'], ['更正批次', 'run'],
+              ['受影响调车区', 'affected'], ['派车采用', 'adopt'], ['理由', 'reason'],
+              ['原签核依据', row => evidence('签核依据', row.basis)], ['登记 UTC', 'created']];
+      rows = [...lineage.as_result.map(record => describe(record, '本批即更正批次')),
+              ...lineage.as_base.map(record => describe(record, '本批被更正'))];
     } else {
       const timeline = await query(`/api/review/${id}`);
       view = [['版本','version','num'], ['结论','decision'], ['复核意见','note'], ['登记 UTC','changed']];
@@ -241,6 +265,27 @@ byId('review').addEventListener('submit', async event => {
   } catch (error) {
     notice(error.message, true);
     if (error.status === 409) await render();
+  }
+});
+correctionAction.addEventListener('click', async () => {
+  if (!result) return;
+  const id = result.manifest.run_id;
+  correctionAction.disabled = true;
+  ++renderEpoch;
+  try {
+    const record = await query(`/api/runs/${id}/corrections`, {data: byId('source-csv').value});
+    notice(`${record.replayed ? '同一更正已登记过，未生成新版本' : '更正已登记'}：${record.dispatch.reason}`);
+    const target = record.dispatch.use_run_id;
+    const [next, original] = await Promise.all([
+      query(`/api/runs/${target}`), query(`/api/runs/${target}/source`),
+    ]);
+    inputs = original;
+    setRun(next);
+    location.hash = 'correction';
+    await render();
+  } catch (error) {
+    notice(error.message, true);
+    correctionAction.disabled = false;
   }
 });
 render();

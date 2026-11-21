@@ -50,6 +50,23 @@ class Review(BaseModel):
     note: str = Field(default='',max_length=500)
 
 
+class Correction(BaseModel):
+    data: CsvText | None = None
+    data_base64: EncodedCsv | None = None
+    book: CsvText | None = None
+    book_base64: EncodedCsv | None = None
+
+    def raw(self):
+        if self.data is None and self.data_base64 is None:
+            raise DataError('CORRECTION_EMPTY','更正记录不能为空')
+        return input_bytes(self.data, self.data_base64, None)
+
+    def ledger(self):
+        if self.book is None and self.book_base64 is None:
+            return None
+        return input_bytes(self.book, self.book_base64, None)
+
+
 def read_sample(name):
     choices = {'shift':'shift.csv','external':'external.csv'}
     if name not in choices:
